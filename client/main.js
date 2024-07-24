@@ -4,7 +4,10 @@ const videoElem = document.getElementById("video");
 const startBtn = document.getElementById("startButton");
 const stopBtn = document.getElementById("stopButton");
 
+let webcamStream = null;
+
 startBtn.addEventListener("click", handleStart);
+stopBtn.addEventListener("click", handleStop);
 
 function handleStart() {
   navigator.mediaDevices
@@ -23,8 +26,20 @@ function handleStart() {
 }
 
 function showInputStream(stream) {
+  webcamStream = stream;
   videoElem.srcObject = stream;
   videoElem.captureStream =
     videoElem.captureStream || videoElem.mozCaptureStream;
+  stopBtn.removeAttribute("disabled");
+  startBtn.setAttribute("disabled", "");
   return videoElem.play();
+}
+
+function handleStop() {
+  if (webcamStream) {
+    webcamStream.getTracks().forEach((track) => track.stop());
+    webcamStream = null;
+    startBtn.removeAttribute("disabled");
+    stopBtn.setAttribute("disabled", "");
+  }
 }
