@@ -1,0 +1,17 @@
+{
+  "name": "Intrevista",
+  "build": {
+    "dockerfile": "../Dockerfile"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "patbenatar.advanced-new-file",
+      ]
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers-contrib/features/mkcert:1": {}
+  }
+}
