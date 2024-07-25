@@ -4,6 +4,9 @@ const videoElem = document.getElementById("video");
 const startBtn = document.getElementById("startButton");
 const stopBtn = document.getElementById("stopButton");
 
+let data = [];
+let mediaRecorder = null;
+
 startBtn.addEventListener("click", handleStart);
 stopBtn.addEventListener("click", handleStop);
 
@@ -14,6 +17,7 @@ function handleStart() {
       audio: true,
     })
     .then(showInputStream)
+    .then(startRecording)
     .catch((error) => {
       if (error.name === "NotFoundError") {
         console.error("Camera or microphone not found. Can't record.");
@@ -32,8 +36,22 @@ function showInputStream(stream) {
   return videoElem.play();
 }
 
+function startRecording() {
+  data = []; // reset data
+  const stream = videoElem.captureStream();
+  mediaRecorder = new MediaRecorder(stream, {
+    mimeType: "video/webm",
+  });
+  mediaRecorder.ondataavailable = (event) => data.push(event.data);
+  mediaRecorder.onerror = (error) => console.error("Recording Error: ", error);
+  mediaRecorder.start();
+}
+
 function handleStop() {
   videoElem.srcObject.getTracks().forEach((track) => track.stop());
+  mediaRecorder.stop();
+  mediaRecorder = null;
+  videoElem.srcObject = null;
   startBtn.removeAttribute("disabled");
   stopBtn.setAttribute("disabled", "");
 }
