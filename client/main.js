@@ -54,4 +54,12 @@ function handleStop() {
   videoElem.srcObject = null;
   startBtn.removeAttribute("disabled");
   stopBtn.setAttribute("disabled", "");
+  setTimeout(enableRecordingPlayback, 0); // allows processing of MediaRecorder's datavailable event
+}
+
+function enableRecordingPlayback() {
+  const recordingBlob = new Blob(data, { type: "video/webm" });
+  videoElem.src = URL.createObjectURL(recordingBlob);
+  videoElem.setAttribute("controls", "");
+  videoElem.muted = false;
 }
