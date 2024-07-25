@@ -4,8 +4,6 @@ const videoElem = document.getElementById("video");
 const startBtn = document.getElementById("startButton");
 const stopBtn = document.getElementById("stopButton");
 
-let webcamStream = null;
-
 startBtn.addEventListener("click", handleStart);
 stopBtn.addEventListener("click", handleStop);
 
@@ -26,7 +24,6 @@ function handleStart() {
 }
 
 function showInputStream(stream) {
-  webcamStream = stream;
   videoElem.srcObject = stream;
   videoElem.captureStream =
     videoElem.captureStream || videoElem.mozCaptureStream;
@@ -36,10 +33,7 @@ function showInputStream(stream) {
 }
 
 function handleStop() {
-  if (webcamStream) {
-    webcamStream.getTracks().forEach((track) => track.stop());
-    webcamStream = null;
-    startBtn.removeAttribute("disabled");
-    stopBtn.setAttribute("disabled", "");
-  }
+  videoElem.srcObject.getTracks().forEach((track) => track.stop());
+  startBtn.removeAttribute("disabled");
+  stopBtn.setAttribute("disabled", "");
 }
