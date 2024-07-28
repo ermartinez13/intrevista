@@ -7,6 +7,7 @@
     "vscode": {
       "extensions": [
         "patbenatar.advanced-new-file",
+        "esbenp.prettier-vscode"
       ]
     }
   },
