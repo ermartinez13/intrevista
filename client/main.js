@@ -3,12 +3,28 @@ import "./style.css";
 const videoElem = document.getElementById("video");
 const startBtn = document.getElementById("startButton");
 const stopBtn = document.getElementById("stopButton");
+const saveBtn = document.getElementById("saveButton");
 
 let data = [];
 let mediaRecorder = null;
+let db = null;
+
+const DB_NAME = "IntrevistaDB";
+const DB_VERSION = 1;
+
+const dbRequest = indexedDB.open(DB_NAME, DB_VERSION);
 
 startBtn.addEventListener("click", handleStart);
 stopBtn.addEventListener("click", handleStop);
+dbRequest.addEventListener("error", console.error);
+dbRequest.addEventListener("success", (event) => {
+  db = event.target.result;
+});
+dbRequest.addEventListener("upgradeneeded", (event) => {
+  const db = event.target.result;
+  db.createObjectStore("videos", { autoIncrement: true });
+});
+saveBtn.addEventListener("click", handleSaveRecording);
 
 function handleStart() {
   navigator.mediaDevices
@@ -38,6 +54,7 @@ function showInputStream(stream) {
 
 function startRecording() {
   data = []; // reset data
+  saveBtn.setAttribute("disabled", "");
   const stream = videoElem.captureStream();
   mediaRecorder = new MediaRecorder(stream, {
     mimeType: "video/webm",
@@ -62,4 +79,18 @@ function enableRecordingPlayback() {
   videoElem.src = URL.createObjectURL(recordingBlob);
   videoElem.setAttribute("controls", "");
   videoElem.muted = false;
+  saveBtn.removeAttribute("disabled");
+}
+
+function handleSaveRecording() {
+  if (db) {
+    const recordingBlob = new Blob(data, { type: "video/webm" });
+    const transaction = db.transaction(["videos"], "readwrite");
+    const objectStore = transaction.objectStore("videos");
+    const request = objectStore.add(recordingBlob);
+    request.onsuccess = () => {
+      saveBtn.setAttribute("disabled", "");
+      saveBtn.textContent = "Saved!";
+    };
+  }
 }
