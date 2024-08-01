@@ -16,21 +16,15 @@ const VIDEO_STORE = "videos";
 
 const dbRequest = indexedDB.open(DB_NAME, DB_VERSION);
 
-startBtn.addEventListener("click", handleStart);
-stopBtn.addEventListener("click", handleStop);
+startBtn.addEventListener("click", handleStartRecording);
+stopBtn.addEventListener("click", handleStopRecording);
 dbRequest.addEventListener("error", console.error);
-dbRequest.addEventListener("success", (event) => {
-  db = event.target.result;
-  getRecordings();
-});
-dbRequest.addEventListener("upgradeneeded", (event) => {
-  const db = event.target.result;
-  db.createObjectStore(VIDEO_STORE, { autoIncrement: true });
-});
+dbRequest.addEventListener("success", handleDBConnection);
+dbRequest.addEventListener("upgradeneeded", handleDBUpgrade);
 saveBtn.addEventListener("click", handleSaveRecording);
 recordingList.addEventListener("click", setPlaybackSource);
 
-function handleStart() {
+function handleStartRecording() {
   navigator.mediaDevices
     .getUserMedia({
       video: true,
@@ -65,17 +59,17 @@ function startRecording() {
   });
   mediaRecorder.ondataavailable = (event) => data.push(event.data);
   mediaRecorder.onerror = (error) => console.error("Recording Error: ", error);
+  mediaRecorder.onstop = enableRecordingPlayback;
   mediaRecorder.start();
 }
 
-function handleStop() {
+function handleStopRecording() {
   videoElem.srcObject.getTracks().forEach((track) => track.stop());
   mediaRecorder.stop();
   mediaRecorder = null;
   videoElem.srcObject = null;
   startBtn.removeAttribute("disabled");
   stopBtn.setAttribute("disabled", "");
-  setTimeout(enableRecordingPlayback, 0); // allows processing of MediaRecorder's datavailable event
 }
 
 function enableRecordingPlayback() {
@@ -99,7 +93,7 @@ function handleSaveRecording() {
   }
 }
 
-function getRecordings() {
+function getRecordings(successHandler) {
   const transaction = db.transaction([VIDEO_STORE], "readonly");
 
   transaction.onerror = (event) => {
@@ -114,16 +108,20 @@ function getRecordings() {
 
   request.onsuccess = (event) => {
     const recordings = event.target.result;
-    recordings.forEach((recording) => {
-      const recordingURL = URL.createObjectURL(recording);
-      const listItemElem = document.createElement("li");
-      const buttonElem = document.createElement("button");
-      buttonElem.textContent = "Play";
-      buttonElem.setAttribute("data-url", recordingURL);
-      listItemElem.appendChild(buttonElem);
-      recordingList.appendChild(listItemElem);
-    });
+    successHandler(recordings);
   };
+}
+
+function renderRecordings(recordings) {
+  recordings.forEach((recording) => {
+    const recordingURL = URL.createObjectURL(recording);
+    const listItemElem = document.createElement("li");
+    const buttonElem = document.createElement("button");
+    buttonElem.textContent = "Play";
+    buttonElem.setAttribute("data-url", recordingURL);
+    listItemElem.appendChild(buttonElem);
+    recordingList.appendChild(listItemElem);
+  });
 }
 
 function setPlaybackSource(event) {
@@ -133,4 +131,14 @@ function setPlaybackSource(event) {
     videoElem.src = recordingURL;
     videoElem.setAttribute("controls", "");
   }
+}
+
+function handleDBUpgrade(event) {
+  const db = event.target.result;
+  db.createObjectStore(VIDEO_STORE, { autoIncrement: true });
+}
+
+function handleDBConnection(event) {
+  db = event.target.result;
+  getRecordings(renderRecordings);
 }
