@@ -83,12 +83,14 @@ function enableRecordingPlayback() {
 function handleSaveRecording() {
   if (db) {
     const recordingBlob = new Blob(data, { type: "video/webm" });
+    const recordingURL = URL.createObjectURL(recordingBlob);
     const transaction = db.transaction([VIDEO_STORE], "readwrite");
     const objectStore = transaction.objectStore(VIDEO_STORE);
     const request = objectStore.add(recordingBlob);
     request.onsuccess = () => {
       saveBtn.setAttribute("disabled", "");
       saveBtn.textContent = "Saved!";
+      appendRecordingToList(recordingURL);
     };
   }
 }
@@ -115,13 +117,17 @@ function getRecordings(successHandler) {
 function renderRecordings(recordings) {
   recordings.forEach((recording) => {
     const recordingURL = URL.createObjectURL(recording);
-    const listItemElem = document.createElement("li");
-    const buttonElem = document.createElement("button");
-    buttonElem.textContent = "Play";
-    buttonElem.setAttribute("data-url", recordingURL);
-    listItemElem.appendChild(buttonElem);
-    recordingList.appendChild(listItemElem);
+    appendRecordingToList(recordingURL);
   });
+}
+
+function appendRecordingToList(recordingURL) {
+  const listItemElem = document.createElement("li");
+  const buttonElem = document.createElement("button");
+  buttonElem.textContent = "Play";
+  buttonElem.setAttribute("data-url", recordingURL);
+  listItemElem.appendChild(buttonElem);
+  recordingList.appendChild(listItemElem);
 }
 
 function setPlaybackSource(event) {
