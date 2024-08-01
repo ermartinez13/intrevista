@@ -130,6 +130,7 @@ function setPlaybackSource(event) {
     const recordingURL = targetElem.getAttribute("data-url");
     videoElem.src = recordingURL;
     videoElem.setAttribute("controls", "");
+    videoElem.muted = false;
   }
 }
 
