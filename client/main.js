@@ -84,13 +84,30 @@ function enableRecordingPlayback() {
 function handleSaveRecording() {
   if (db) {
     const recordingBlob = new Blob(data, { type: "video/webm" });
-    const recordingURL = URL.createObjectURL(recordingBlob);
-    const transaction = db.transaction([VIDEO_STORE], "readwrite");
+    const transaction = db.transaction(
+      [VIDEO_STORE, METADATA_STORE],
+      "readwrite"
+    );
     const objectStore = transaction.objectStore(VIDEO_STORE);
     const request = objectStore.add(recordingBlob);
-    request.onsuccess = () => {
+    request.onsuccess = (event) => {
+      const videoKey = event.target.result;
+      const timestamp = new Date();
+      const metadataStore = transaction.objectStore(METADATA_STORE);
+      const metadata = {
+        videoKey,
+        createdAt: timestamp,
+        description: "",
+        title: "untitled",
+        updatedAt: timestamp,
+      };
+      const metadataRequest = metadataStore.add(metadata);
+      metadataRequest.onerror = (event) => {
+        console.error("Metadata save error: ", event.target.error);
+      };
       saveBtn.setAttribute("disabled", "");
       saveBtn.textContent = "Saved!";
+      const recordingURL = URL.createObjectURL(recordingBlob);
       appendRecordingToList(recordingURL);
     };
   }
