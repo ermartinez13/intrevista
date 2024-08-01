@@ -107,43 +107,41 @@ function handleSaveRecording() {
       };
       saveBtn.setAttribute("disabled", "");
       saveBtn.textContent = "Saved!";
-      const recordingURL = URL.createObjectURL(recordingBlob);
-      appendRecordingToList(recordingURL);
+      metadataRequest.onsuccess = () => appendMetadataToList(metadata);
     };
   }
 }
 
-function getRecordings(successHandler) {
-  const transaction = db.transaction([VIDEO_STORE], "readonly");
+function getMetadataList(successHandler) {
+  const transaction = db.transaction([METADATA_STORE], "readonly");
 
   transaction.onerror = (event) => {
-    console.error(
-      "Recording retrieval transaction error: ",
-      event.target.error
-    );
+    console.error("Metadata retrieval transaction error: ", event.target.error);
   };
 
-  const objectStore = transaction.objectStore(VIDEO_STORE);
-  const request = objectStore.getAll();
+  const metadataStore = transaction.objectStore(METADATA_STORE);
+  const request = metadataStore.getAll();
 
   request.onsuccess = (event) => {
-    const recordings = event.target.result;
-    successHandler(recordings);
+    const metadataList = event.target.result;
+    successHandler(metadataList);
   };
 }
 
-function renderRecordings(recordings) {
-  recordings.forEach((recording) => {
-    const recordingURL = URL.createObjectURL(recording);
-    appendRecordingToList(recordingURL);
+function renderMetadata(metadataList) {
+  metadataList.forEach((metadata) => {
+    appendMetadataToList(metadata);
   });
 }
 
-function appendRecordingToList(recordingURL) {
+function appendMetadataToList(metadata) {
   const listItemElem = document.createElement("li");
   const buttonElem = document.createElement("button");
-  buttonElem.textContent = "Play";
-  buttonElem.setAttribute("data-url", recordingURL);
+  const paragraphElem = document.createElement("p");
+  buttonElem.textContent = `Play ${metadata.title}`;
+  paragraphElem.textContent = `Recorded on: ${metadata.createdAt}`;
+  buttonElem.setAttribute("data-video-key", metadata.videoKey);
+  listItemElem.appendChild(paragraphElem);
   listItemElem.appendChild(buttonElem);
   recordingList.appendChild(listItemElem);
 }
@@ -172,5 +170,5 @@ function handleDBUpgrade(event) {
 
 function handleDBConnection(event) {
   db = event.target.result;
-  getRecordings(renderRecordings);
+  getMetadataList(renderMetadata);
 }
