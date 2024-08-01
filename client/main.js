@@ -1,9 +1,9 @@
 import "./style.css";
 
 const videoElem = document.getElementById("video");
-const startBtn = document.getElementById("startButton");
-const stopBtn = document.getElementById("stopButton");
-const saveBtn = document.getElementById("saveButton");
+const startBtn = document.getElementById("start-button");
+const stopBtn = document.getElementById("stop-button");
+const saveBtn = document.getElementById("save-button");
 const recordingList = document.getElementById("recordings");
 
 let data = [];
