@@ -4,6 +4,7 @@ const videoElem = document.getElementById("video");
 const startBtn = document.getElementById("startButton");
 const stopBtn = document.getElementById("stopButton");
 const saveBtn = document.getElementById("saveButton");
+const recordingList = document.getElementById("recordings");
 
 let data = [];
 let mediaRecorder = null;
@@ -11,6 +12,7 @@ let db = null;
 
 const DB_NAME = "IntrevistaDB";
 const DB_VERSION = 1;
+const VIDEO_STORE = "videos";
 
 const dbRequest = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -19,12 +21,14 @@ stopBtn.addEventListener("click", handleStop);
 dbRequest.addEventListener("error", console.error);
 dbRequest.addEventListener("success", (event) => {
   db = event.target.result;
+  getRecordings();
 });
 dbRequest.addEventListener("upgradeneeded", (event) => {
   const db = event.target.result;
-  db.createObjectStore("videos", { autoIncrement: true });
+  db.createObjectStore(VIDEO_STORE, { autoIncrement: true });
 });
 saveBtn.addEventListener("click", handleSaveRecording);
+recordingList.addEventListener("click", setPlaybackSource);
 
 function handleStart() {
   navigator.mediaDevices
@@ -85,12 +89,48 @@ function enableRecordingPlayback() {
 function handleSaveRecording() {
   if (db) {
     const recordingBlob = new Blob(data, { type: "video/webm" });
-    const transaction = db.transaction(["videos"], "readwrite");
-    const objectStore = transaction.objectStore("videos");
+    const transaction = db.transaction([VIDEO_STORE], "readwrite");
+    const objectStore = transaction.objectStore(VIDEO_STORE);
     const request = objectStore.add(recordingBlob);
     request.onsuccess = () => {
       saveBtn.setAttribute("disabled", "");
       saveBtn.textContent = "Saved!";
     };
+  }
+}
+
+function getRecordings() {
+  const transaction = db.transaction([VIDEO_STORE], "readonly");
+
+  transaction.onerror = (event) => {
+    console.error(
+      "Recording retrieval transaction error: ",
+      event.target.error
+    );
+  };
+
+  const objectStore = transaction.objectStore(VIDEO_STORE);
+  const request = objectStore.getAll();
+
+  request.onsuccess = (event) => {
+    const recordings = event.target.result;
+    recordings.forEach((recording) => {
+      const recordingURL = URL.createObjectURL(recording);
+      const listItemElem = document.createElement("li");
+      const buttonElem = document.createElement("button");
+      buttonElem.textContent = "Play";
+      buttonElem.setAttribute("data-url", recordingURL);
+      listItemElem.appendChild(buttonElem);
+      recordingList.appendChild(listItemElem);
+    });
+  };
+}
+
+function setPlaybackSource(event) {
+  const targetElem = event.target;
+  if (targetElem.tagName === "BUTTON") {
+    const recordingURL = targetElem.getAttribute("data-url");
+    videoElem.src = recordingURL;
+    videoElem.setAttribute("controls", "");
   }
 }
