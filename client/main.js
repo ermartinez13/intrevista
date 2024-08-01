@@ -149,10 +149,16 @@ function appendMetadataToList(metadata) {
 function setPlaybackSource(event) {
   const targetElem = event.target;
   if (targetElem.tagName === "BUTTON") {
-    const recordingURL = targetElem.getAttribute("data-url");
-    videoElem.src = recordingURL;
-    videoElem.setAttribute("controls", "");
-    videoElem.muted = false;
+    const videoKey = targetElem.getAttribute("data-video-key");
+    const transaction = db.transaction(VIDEO_STORE, "readonly");
+    const request = transaction.objectStore(VIDEO_STORE).get(Number(videoKey));
+    request.onsuccess = (event) => {
+      const recordingBlob = event.target.result;
+      const recordingURL = URL.createObjectURL(recordingBlob);
+      videoElem.src = recordingURL;
+      videoElem.setAttribute("controls", "");
+      videoElem.muted = false;
+    };
   }
 }
 
