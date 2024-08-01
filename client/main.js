@@ -11,8 +11,9 @@ let mediaRecorder = null;
 let db = null;
 
 const DB_NAME = "IntrevistaDB";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const VIDEO_STORE = "videos";
+const METADATA_STORE = "metadata";
 
 const dbRequest = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -142,7 +143,14 @@ function setPlaybackSource(event) {
 
 function handleDBUpgrade(event) {
   const db = event.target.result;
-  db.createObjectStore(VIDEO_STORE, { autoIncrement: true });
+  const storeNames = db.objectStoreNames;
+
+  if (!storeNames.contains(VIDEO_STORE)) {
+    db.createObjectStore(VIDEO_STORE, { autoIncrement: true });
+  }
+  if (!storeNames.contains(METADATA_STORE)) {
+    db.createObjectStore(METADATA_STORE, { autoIncrement: true });
+  }
 }
 
 function handleDBConnection(event) {
