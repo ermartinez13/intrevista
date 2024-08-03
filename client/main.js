@@ -11,7 +11,7 @@ let mediaRecorder = null;
 let db = null;
 
 const DB_NAME = "IntrevistaDB";
-const DB_VERSION = 2;
+const DB_VERSION = 1;
 const VIDEO_STORE = "videos";
 const METADATA_STORE = "metadata";
 let contentEdit = null;
@@ -185,7 +185,7 @@ function handleDBUpgrade(event) {
     db.createObjectStore(VIDEO_STORE, { autoIncrement: true });
   }
   if (!storeNames.contains(METADATA_STORE)) {
-    db.createObjectStore(METADATA_STORE, { autoIncrement: true });
+    db.createObjectStore(METADATA_STORE, { keyPath: "videoKey" });
   }
 }
 
@@ -218,10 +218,24 @@ function persistChanges(event) {
     const dataEditable = target.getAttribute("data-editable");
     if (dataEditable) {
       const [videoKey, property] = dataEditable.split("-");
-      const editedConent = target.textContent;
-      if (contentEdit.originalContent === editedConent) {
+      const editedContent =
+        target.tagName === "TEXTAREA" ? target.value : target.textContent;
+      if (contentEdit.originalContent === editedContent) {
         return;
       }
+      const transaction = db.transaction([METADATA_STORE], "readwrite");
+      const request = transaction.objectStore("metadata").get(Number(videoKey));
+      request.onsuccess = () => {
+        const metadata = request.result;
+        metadata[property] = editedContent;
+        const putRequest = transaction.objectStore("metadata").put(metadata);
+        putRequest.onerror = () => {
+          target.setContent = contentEdit.originalContent;
+        };
+        putRequest.onsuccess = () => {
+          contentEdit = null;
+        };
+      };
     }
   }
 }
