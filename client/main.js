@@ -137,13 +137,16 @@ function renderMetadata(metadataList) {
 function appendMetadataToList(metadata) {
   const listItemElem = document.createElement("li");
   const buttonElem = document.createElement("button");
-  const descriptionElem = document.createElement("p");
+  const createdAtElem = document.createElement("p");
   const titleElem = document.createElement("p");
+  const descriptionElem = document.createElement("textarea");
   buttonElem.textContent = `Play ${metadata.videoKey}`;
-  descriptionElem.textContent = `Recorded on: ${metadata.createdAt}`;
+  createdAtElem.textContent = `Created: ${metadata.createdAt}`;
   titleElem.textContent = `${metadata.title} (${metadata.videoKey})`;
   buttonElem.setAttribute("data-video-key", metadata.videoKey);
+  descriptionElem.textContent = metadata.description;
   listItemElem.appendChild(titleElem);
+  listItemElem.appendChild(createdAtElem);
   listItemElem.appendChild(descriptionElem);
   listItemElem.appendChild(buttonElem);
   recordingList.appendChild(listItemElem);
