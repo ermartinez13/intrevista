@@ -14,6 +14,7 @@ const DB_NAME = "IntrevistaDB";
 const DB_VERSION = 2;
 const VIDEO_STORE = "videos";
 const METADATA_STORE = "metadata";
+let contentEdit = null;
 
 const dbRequest = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -24,6 +25,8 @@ dbRequest.addEventListener("success", handleDBConnection);
 dbRequest.addEventListener("upgradeneeded", handleDBUpgrade);
 saveBtn.addEventListener("click", handleSaveRecording);
 recordingList.addEventListener("click", setPlaybackSource);
+recordingList.addEventListener("focusin", setEditTarget);
+recordingList.addEventListener("focusout", persistChanges);
 
 function handleStartRecording() {
   navigator.mediaDevices
@@ -140,13 +143,17 @@ function appendMetadataToList(metadata) {
   const createdAtElem = document.createElement("p");
   const titleElem = document.createElement("p");
   const descriptionElem = document.createElement("textarea");
+  const dataAttrPrefix = `${metadata.videoKey}-`;
   buttonElem.textContent = `Play ${metadata.videoKey}`;
   createdAtElem.textContent = `Created: ${new Date(
     metadata.createdAt
   ).toLocaleString()}`;
-  titleElem.textContent = `${metadata.title} (${metadata.videoKey})`;
+  titleElem.textContent = metadata.title;
   buttonElem.setAttribute("data-video-key", metadata.videoKey);
+  titleElem.setAttribute("contenteditable", "");
   descriptionElem.textContent = metadata.description;
+  titleElem.setAttribute("data-editable", dataAttrPrefix + "title");
+  descriptionElem.setAttribute("data-editable", dataAttrPrefix + "description");
   listItemElem.appendChild(titleElem);
   listItemElem.appendChild(createdAtElem);
   listItemElem.appendChild(descriptionElem);
@@ -185,4 +192,36 @@ function handleDBUpgrade(event) {
 function handleDBConnection(event) {
   db = event.target.result;
   getMetadataList(renderMetadata);
+}
+
+function setEditTarget(event) {
+  const target = event.target;
+  const editableElems = ["P", "TEXTAREA"];
+  if (editableElems.includes(target.tagName)) {
+    const dataEditable = target.getAttribute("data-editable");
+    const originalContent = target.textContent;
+    if (dataEditable) {
+      const [videoKey, property] = dataEditable.split("-");
+      contentEdit = {
+        property,
+        videoKey,
+        originalContent,
+      };
+    }
+  }
+}
+
+function persistChanges(event) {
+  const target = event.target;
+  const editableElems = ["P", "TEXTAREA"];
+  if (editableElems.includes(target.tagName)) {
+    const dataEditable = target.getAttribute("data-editable");
+    if (dataEditable) {
+      const [videoKey, property] = dataEditable.split("-");
+      const editedConent = target.textContent;
+      if (contentEdit.originalContent === editedConent) {
+        return;
+      }
+    }
+  }
 }
