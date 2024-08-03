@@ -141,7 +141,9 @@ function appendMetadataToList(metadata) {
   const titleElem = document.createElement("p");
   const descriptionElem = document.createElement("textarea");
   buttonElem.textContent = `Play ${metadata.videoKey}`;
-  createdAtElem.textContent = `Created: ${metadata.createdAt}`;
+  createdAtElem.textContent = `Created: ${new Date(
+    metadata.createdAt
+  ).toLocaleString()}`;
   titleElem.textContent = `${metadata.title} (${metadata.videoKey})`;
   buttonElem.setAttribute("data-video-key", metadata.videoKey);
   descriptionElem.textContent = metadata.description;
