@@ -24,7 +24,7 @@ dbRequest.addEventListener("error", console.error);
 dbRequest.addEventListener("success", handleDBConnection);
 dbRequest.addEventListener("upgradeneeded", handleDBUpgrade);
 saveBtn.addEventListener("click", handleSaveRecording);
-recordingList.addEventListener("click", setPlaybackSource);
+recordingList.addEventListener("click", handlePlayDeleteActions);
 recordingList.addEventListener("focusin", setEditTarget);
 recordingList.addEventListener("focusout", persistChanges);
 
@@ -139,17 +139,20 @@ function renderMetadata(metadataList) {
 
 function appendMetadataToList(metadata) {
   const listItemElem = document.createElement("li");
-  const buttonElem = document.createElement("button");
+  const playButton = document.createElement("button");
+  const deleteButton = document.createElement("button");
   const createdAtElem = document.createElement("p");
   const titleElem = document.createElement("p");
   const descriptionElem = document.createElement("textarea");
   const dataAttrPrefix = `${metadata.videoKey}-`;
-  buttonElem.textContent = `Play ${metadata.videoKey}`;
+  playButton.textContent = `Play ${metadata.videoKey}`;
+  deleteButton.textContent = `Delete ${metadata.videoKey}`;
   createdAtElem.textContent = `Created: ${new Date(
     metadata.createdAt
   ).toLocaleString()}`;
   titleElem.textContent = metadata.title;
-  buttonElem.setAttribute("data-video-key", metadata.videoKey);
+  playButton.setAttribute("data-key-action", `${metadata.videoKey}-play`);
+  deleteButton.setAttribute("data-key-action", `${metadata.videoKey}-delete`);
   titleElem.setAttribute("contenteditable", "");
   descriptionElem.textContent = metadata.description;
   titleElem.setAttribute("data-editable", dataAttrPrefix + "title");
@@ -157,23 +160,40 @@ function appendMetadataToList(metadata) {
   listItemElem.appendChild(titleElem);
   listItemElem.appendChild(createdAtElem);
   listItemElem.appendChild(descriptionElem);
-  listItemElem.appendChild(buttonElem);
+  listItemElem.appendChild(playButton);
+  listItemElem.appendChild(deleteButton);
   recordingList.appendChild(listItemElem);
 }
 
-function setPlaybackSource(event) {
+function handlePlayDeleteActions(event) {
   const targetElem = event.target;
   if (targetElem.tagName === "BUTTON") {
-    const videoKey = targetElem.getAttribute("data-video-key");
-    const transaction = db.transaction(VIDEO_STORE, "readonly");
-    const request = transaction.objectStore(VIDEO_STORE).get(Number(videoKey));
-    request.onsuccess = (event) => {
-      const recordingBlob = event.target.result;
-      const recordingURL = URL.createObjectURL(recordingBlob);
-      videoElem.src = recordingURL;
-      videoElem.setAttribute("controls", "");
-      videoElem.muted = false;
-    };
+    const [key, action] = targetElem.getAttribute("data-key-action").split("-");
+    const videoKey = Number(key);
+    const transaction = db.transaction(
+      [VIDEO_STORE, METADATA_STORE],
+      "readwrite"
+    );
+    const videoStore = transaction.objectStore(VIDEO_STORE);
+
+    if (action === "play") {
+      const request = videoStore.get(videoKey);
+      request.onsuccess = (event) => {
+        const recordingBlob = event.target.result;
+        const recordingURL = URL.createObjectURL(recordingBlob);
+        videoElem.src = recordingURL;
+        videoElem.setAttribute("controls", "");
+        videoElem.muted = false;
+      };
+    }
+
+    if (action === "delete") {
+      const metadataStore = transaction.objectStore(METADATA_STORE);
+      const metadataDeleteRequest = metadataStore.delete(videoKey);
+      metadataDeleteRequest.onsuccess = () => {
+        const videoDeleteRequest = videoStore.delete(videoKey);
+      };
+    }
   }
 }
 
