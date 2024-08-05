@@ -11,9 +11,10 @@ let mediaRecorder = null;
 let db = null;
 
 const DB_NAME = "IntrevistaDB";
-const DB_VERSION = 2;
+const DB_VERSION = 1;
 const VIDEO_STORE = "videos";
 const METADATA_STORE = "metadata";
+let contentEdit = null;
 
 const dbRequest = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -23,7 +24,9 @@ dbRequest.addEventListener("error", console.error);
 dbRequest.addEventListener("success", handleDBConnection);
 dbRequest.addEventListener("upgradeneeded", handleDBUpgrade);
 saveBtn.addEventListener("click", handleSaveRecording);
-recordingList.addEventListener("click", setPlaybackSource);
+recordingList.addEventListener("click", handlePlayDeleteActions);
+recordingList.addEventListener("focusin", setEditTarget);
+recordingList.addEventListener("focusout", persistChanges);
 
 function handleStartRecording() {
   navigator.mediaDevices
@@ -126,9 +129,17 @@ function getMetadataList(successHandler) {
     const metadataList = event.target.result;
     successHandler(metadataList);
   };
+  request.onerror = console.error;
 }
 
-function renderMetadata(metadataList) {
+function insertMetadata(metadataList) {
+  metadataList.forEach((metadata) => {
+    appendMetadataToList(metadata);
+  });
+}
+
+function replaceMetadata(metadataList) {
+  recordingList.innerHTML = null;
   metadataList.forEach((metadata) => {
     appendMetadataToList(metadata);
   });
@@ -136,29 +147,68 @@ function renderMetadata(metadataList) {
 
 function appendMetadataToList(metadata) {
   const listItemElem = document.createElement("li");
-  const buttonElem = document.createElement("button");
-  const paragraphElem = document.createElement("p");
-  buttonElem.textContent = `Play ${metadata.title}`;
-  paragraphElem.textContent = `Recorded on: ${metadata.createdAt}`;
-  buttonElem.setAttribute("data-video-key", metadata.videoKey);
-  listItemElem.appendChild(paragraphElem);
-  listItemElem.appendChild(buttonElem);
+  const playButton = document.createElement("button");
+  const deleteButton = document.createElement("button");
+  const createdAtElem = document.createElement("p");
+  const titleElem = document.createElement("p");
+  const descriptionElem = document.createElement("textarea");
+  const dataAttrPrefix = `${metadata.videoKey}-`;
+  playButton.textContent = `Play ${metadata.videoKey}`;
+  deleteButton.textContent = `Delete ${metadata.videoKey}`;
+  createdAtElem.textContent = `Created: ${new Date(
+    metadata.createdAt
+  ).toLocaleString()}`;
+  titleElem.textContent = metadata.title;
+  playButton.setAttribute("data-key-action", `${metadata.videoKey}-play`);
+  deleteButton.setAttribute("data-key-action", `${metadata.videoKey}-delete`);
+  titleElem.setAttribute("contenteditable", "");
+  descriptionElem.textContent = metadata.description;
+  titleElem.setAttribute("data-editable", dataAttrPrefix + "title");
+  descriptionElem.setAttribute("data-editable", dataAttrPrefix + "description");
+  listItemElem.appendChild(titleElem);
+  listItemElem.appendChild(createdAtElem);
+  listItemElem.appendChild(descriptionElem);
+  listItemElem.appendChild(playButton);
+  listItemElem.appendChild(deleteButton);
   recordingList.appendChild(listItemElem);
 }
 
-function setPlaybackSource(event) {
+function handlePlayDeleteActions(event) {
   const targetElem = event.target;
   if (targetElem.tagName === "BUTTON") {
-    const videoKey = targetElem.getAttribute("data-video-key");
-    const transaction = db.transaction(VIDEO_STORE, "readonly");
-    const request = transaction.objectStore(VIDEO_STORE).get(Number(videoKey));
-    request.onsuccess = (event) => {
-      const recordingBlob = event.target.result;
-      const recordingURL = URL.createObjectURL(recordingBlob);
-      videoElem.src = recordingURL;
-      videoElem.setAttribute("controls", "");
-      videoElem.muted = false;
+    const [key, action] = targetElem.getAttribute("data-key-action").split("-");
+    const videoKey = Number(key);
+    const transaction = db.transaction(
+      [VIDEO_STORE, METADATA_STORE],
+      "readwrite"
+    );
+    const videoStore = transaction.objectStore(VIDEO_STORE);
+
+    transaction.oncomplete = () => {
+      getMetadataList(replaceMetadata);
     };
+    transaction.onerror = console.error;
+
+    if (action === "play") {
+      const request = videoStore.get(videoKey);
+      request.onsuccess = (event) => {
+        const recordingBlob = event.target.result;
+        const recordingURL = URL.createObjectURL(recordingBlob);
+        videoElem.src = recordingURL;
+        videoElem.setAttribute("controls", "");
+        videoElem.muted = false;
+      };
+    }
+
+    if (action === "delete") {
+      const metadataStore = transaction.objectStore(METADATA_STORE);
+      const metadataDeleteRequest = metadataStore.delete(videoKey);
+      metadataDeleteRequest.onsuccess = () => {
+        const videoDeleteRequest = videoStore.delete(videoKey);
+        videoDeleteRequest.onerror = console.error;
+      };
+      metadataDeleteRequest.onerror = console.error;
+    }
   }
 }
 
@@ -170,11 +220,57 @@ function handleDBUpgrade(event) {
     db.createObjectStore(VIDEO_STORE, { autoIncrement: true });
   }
   if (!storeNames.contains(METADATA_STORE)) {
-    db.createObjectStore(METADATA_STORE, { autoIncrement: true });
+    db.createObjectStore(METADATA_STORE, { keyPath: "videoKey" });
   }
 }
 
 function handleDBConnection(event) {
   db = event.target.result;
-  getMetadataList(renderMetadata);
+  getMetadataList(insertMetadata);
+}
+
+function setEditTarget(event) {
+  const target = event.target;
+  const editableElems = ["P", "TEXTAREA"];
+  if (editableElems.includes(target.tagName)) {
+    const dataEditable = target.getAttribute("data-editable");
+    const originalContent = target.textContent;
+    if (dataEditable) {
+      const [videoKey, property] = dataEditable.split("-");
+      contentEdit = {
+        property,
+        videoKey,
+        originalContent,
+      };
+    }
+  }
+}
+
+function persistChanges(event) {
+  const target = event.target;
+  const editableElems = ["P", "TEXTAREA"];
+  if (editableElems.includes(target.tagName)) {
+    const dataEditable = target.getAttribute("data-editable");
+    if (dataEditable) {
+      const [videoKey, property] = dataEditable.split("-");
+      const editedContent =
+        target.tagName === "TEXTAREA" ? target.value : target.textContent;
+      if (contentEdit.originalContent === editedContent) {
+        return;
+      }
+      const transaction = db.transaction([METADATA_STORE], "readwrite");
+      const request = transaction.objectStore("metadata").get(Number(videoKey));
+      request.onsuccess = () => {
+        const metadata = request.result;
+        metadata[property] = editedContent;
+        const putRequest = transaction.objectStore("metadata").put(metadata);
+        putRequest.onerror = () => {
+          target.setContent = contentEdit.originalContent;
+        };
+        putRequest.onsuccess = () => {
+          contentEdit = null;
+        };
+      };
+    }
+  }
 }
