@@ -129,9 +129,17 @@ function getMetadataList(successHandler) {
     const metadataList = event.target.result;
     successHandler(metadataList);
   };
+  request.onerror = console.error;
 }
 
-function renderMetadata(metadataList) {
+function insertMetadata(metadataList) {
+  metadataList.forEach((metadata) => {
+    appendMetadataToList(metadata);
+  });
+}
+
+function replaceMetadata(metadataList) {
+  recordingList.innerHTML = null;
   metadataList.forEach((metadata) => {
     appendMetadataToList(metadata);
   });
@@ -176,6 +184,11 @@ function handlePlayDeleteActions(event) {
     );
     const videoStore = transaction.objectStore(VIDEO_STORE);
 
+    transaction.oncomplete = () => {
+      getMetadataList(replaceMetadata);
+    };
+    transaction.onerror = console.error;
+
     if (action === "play") {
       const request = videoStore.get(videoKey);
       request.onsuccess = (event) => {
@@ -192,7 +205,9 @@ function handlePlayDeleteActions(event) {
       const metadataDeleteRequest = metadataStore.delete(videoKey);
       metadataDeleteRequest.onsuccess = () => {
         const videoDeleteRequest = videoStore.delete(videoKey);
+        videoDeleteRequest.onerror = console.error;
       };
+      metadataDeleteRequest.onerror = console.error;
     }
   }
 }
@@ -211,7 +226,7 @@ function handleDBUpgrade(event) {
 
 function handleDBConnection(event) {
   db = event.target.result;
-  getMetadataList(renderMetadata);
+  getMetadataList(insertMetadata);
 }
 
 function setEditTarget(event) {
