@@ -56,6 +56,8 @@ function showInputStream(stream) {
 
 function startRecording() {
   data = []; // reset data
+  videoElem.removeAttribute("controls");
+  videoElem.muted = true;
   saveBtn.setAttribute("disabled", "");
   const stream = videoElem.captureStream();
   mediaRecorder = new MediaRecorder(stream, {
