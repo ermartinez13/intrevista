@@ -5,6 +5,7 @@ const startBtn = document.getElementById("start-button");
 const stopBtn = document.getElementById("stop-button");
 const saveBtn = document.getElementById("save-button");
 const recordingList = document.getElementById("recordings");
+const deviceSelect = document.getElementById("device-select");
 
 let data = [];
 let mediaRecorder = null;
@@ -15,6 +16,7 @@ const DB_VERSION = 1;
 const VIDEO_STORE = "videos";
 const METADATA_STORE = "metadata";
 let contentEdit = null;
+let videoDevice = null;
 
 const dbRequest = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -275,4 +277,25 @@ function persistChanges(event) {
       };
     }
   }
+}
+
+function populateDeviceList() {
+  navigator.mediaDevices
+    .enumerateDevices()
+    .then((devices) => {
+      devices.forEach((device, idx) => {
+        if (device.kind === "videoinput") {
+          const option = document.createElement("option");
+          option.value = device.deviceId;
+          option.text = device.label || `${device.kind} ${device.deviceId}`;
+          deviceSelect.appendChild(option);
+          if (videoDevice === null) {
+            videoDevice = device.deviceId;
+          }
+        }
+      });
+    })
+    .catch((error) => {
+      console.error("Error enumerating devices: ", error);
+    });
 }
