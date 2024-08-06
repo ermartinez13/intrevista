@@ -29,11 +29,19 @@ saveBtn.addEventListener("click", handleSaveRecording);
 recordingList.addEventListener("click", handlePlayDeleteActions);
 recordingList.addEventListener("focusin", setEditTarget);
 recordingList.addEventListener("focusout", persistChanges);
+deviceSelect.addEventListener("change", (event) => {
+  const deviceId = event.target.value;
+  videoDevice = deviceId;
+});
+
+populateDeviceList();
 
 function handleStartRecording() {
   navigator.mediaDevices
     .getUserMedia({
-      video: true,
+      video: {
+        deviceId: { exact: videoDevice },
+      },
       audio: true,
     })
     .then(showInputStream)
