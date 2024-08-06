@@ -5,6 +5,7 @@ const startBtn = document.getElementById("start-button");
 const stopBtn = document.getElementById("stop-button");
 const saveBtn = document.getElementById("save-button");
 const recordingList = document.getElementById("recordings");
+const deviceSelect = document.getElementById("device-select");
 
 let data = [];
 let mediaRecorder = null;
@@ -15,6 +16,7 @@ const DB_VERSION = 1;
 const VIDEO_STORE = "videos";
 const METADATA_STORE = "metadata";
 let contentEdit = null;
+let videoDevice = null;
 
 const dbRequest = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -27,11 +29,19 @@ saveBtn.addEventListener("click", handleSaveRecording);
 recordingList.addEventListener("click", handlePlayDeleteActions);
 recordingList.addEventListener("focusin", setEditTarget);
 recordingList.addEventListener("focusout", persistChanges);
+deviceSelect.addEventListener("change", (event) => {
+  const deviceId = event.target.value;
+  videoDevice = deviceId;
+});
+
+populateDeviceList();
 
 function handleStartRecording() {
   navigator.mediaDevices
     .getUserMedia({
-      video: true,
+      video: {
+        deviceId: { exact: videoDevice },
+      },
       audio: true,
     })
     .then(showInputStream)
@@ -56,6 +66,8 @@ function showInputStream(stream) {
 
 function startRecording() {
   data = []; // reset data
+  videoElem.removeAttribute("controls");
+  videoElem.muted = true;
   saveBtn.setAttribute("disabled", "");
   const stream = videoElem.captureStream();
   mediaRecorder = new MediaRecorder(stream, {
@@ -273,4 +285,25 @@ function persistChanges(event) {
       };
     }
   }
+}
+
+function populateDeviceList() {
+  navigator.mediaDevices
+    .enumerateDevices()
+    .then((devices) => {
+      devices.forEach((device, idx) => {
+        if (device.kind === "videoinput") {
+          const option = document.createElement("option");
+          option.value = device.deviceId;
+          option.text = device.label || `${device.kind} ${device.deviceId}`;
+          deviceSelect.appendChild(option);
+          if (videoDevice === null) {
+            videoDevice = device.deviceId;
+          }
+        }
+      });
+    })
+    .catch((error) => {
+      console.error("Error enumerating devices: ", error);
+    });
 }
